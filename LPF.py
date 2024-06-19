@@ -3,9 +3,12 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.io import wavfile
 from scipy.signal import butter, lfilter
+from funcs import merge_wav_files
 
 sns.set_style("darkgrid")
 sns.set_context("talk")
+
+
 
 def butter_lowpass(cutoff, fs, order=5):
     nyquist = 0.5 * fs
@@ -18,22 +21,28 @@ def lowpass_filter(data, cutoff, fs, order=5):
     y = lfilter(b, a, data)
     return y
 
+
+input_file = 'files/input_audio.wav'
+noise_file = 'files/noise1.wav'
+combined_file = 'files/combined_audio.wav'
+merge_wav_files(input_file,noise_file,combined_file)
+
 # Read the audio file (assuming a .wav file)
-samplerate, data = wavfile.read('files/input_audio.wav')
+samplerate, data = wavfile.read('files/combined_audio.wav')
 
 # Ensure mono audio by averaging channels if necessary
 if len(data.shape) > 1:
     data = data.mean(axis=1)
 
 # Define filter parameters
-cutoff_freq = 1000  # Adjust the cutoff frequency as needed
-order = 6
+cutoff_freq = 5000  # Adjust the cutoff frequency as needed
+order = 30
 
 # Apply the low-pass filter
 filtered_data = lowpass_filter(data, cutoff_freq, samplerate, order)
 
 # Save the filtered audio
-wavfile.write('files/output_audio.wav', samplerate, filtered_data.astype(np.int16))
+wavfile.write('files/denoised_lpf.wav', samplerate, filtered_data.astype(np.int16))
 
 # Plotting
 fig, axs = plt.subplots(2, 1, figsize=(15, 10))

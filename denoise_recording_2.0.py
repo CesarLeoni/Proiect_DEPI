@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import soundfile as sf
 import librosa
 import librosa.display
+from funcs import merge_wav_files
 
 
 def denoise_audio(input_file, output_file, threshold=0.1, frame_length=4*1024, hop_length=512):
@@ -52,5 +53,9 @@ def denoise_audio(input_file, output_file, threshold=0.1, frame_length=4*1024, h
 
 if __name__ == "__main__":
     input_file = 'files/input_audio.wav'  # Change this to your input file path
-    output_file = 'files/output_audio.wav'  # Change this to your desired output file path
-    denoise_audio(input_file, output_file, threshold=0.13)
+    noise_file = 'files/noise1.wav'
+    combined_file = 'files/combined_audio.wav'
+    merge_wav_files(input_file,noise_file,combined_file)
+
+    output_file = 'files/denoised_audio.wav'  # Change this to your desired output file path
+    denoise_audio(combined_file, output_file, threshold=0.13)
