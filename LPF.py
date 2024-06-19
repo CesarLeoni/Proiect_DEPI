@@ -56,3 +56,4 @@ axs[1].plot(filtered_data)
 axs[1].set_title('Filtered Signal')
 
 plt.show()
+

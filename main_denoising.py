@@ -2,92 +2,99 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import style
 from mightypy.make import sine_wave_from_sample, sine_wave_from_timesteps
+import random
+from funcs import plot_noisy_signals
 
-style.use('ggplot')
+NOISE_MULTIPLIER = 3.5
+THRESHOLD = 170  # threshold for getting components
 
-time_step = 0.001
+time_step = 0.0005
 
-# GENERATING NOISY SIGNAL
-# amplitude parameter can be added , default is 1
-wave1, time1, freqs1  = sine_wave_from_timesteps(signal_freq=50, time_step=time_step)
-wave2, time2, freqs2  = sine_wave_from_timesteps(signal_freq=70, time_step=time_step)
-original_signal = wave1 + wave2
+MinMSE = 1000
+MaxMSE = 0
 
-N = len(original_signal)
+for i in range(1,1000):
+    # GENERATING NOISY SIGNAL
+    # amplitude parameter can be added , default is 1
+    freqs = np.random.randint(1, 101, size=4)
+    wave1, time1, freqs1  = sine_wave_from_timesteps(freqs[0], time_step=time_step)
+    wave2, time2, freqs2  = sine_wave_from_timesteps(freqs[1], time_step=time_step)
+    wave3, time3, freqs3 = sine_wave_from_timesteps(freqs[2], time_step=time_step)
+    wave4, time4, freqs4 = sine_wave_from_timesteps(freqs[3], time_step=time_step)
+    #we can increase complexity by adding or reducing the waves that compose the original signal
 
-noise = 2 * np.random.randn(N)
+    original_signal = wave1 + wave2 + wave3 + wave4
 
-noisy_signal = original_signal + noise  # adding random noise here
+    N = len(original_signal)
+    # print(N)
 
-fig = plt.figure(figsize=(13, 8))
+    noise = NOISE_MULTIPLIER * np.random.randn(N)
 
-ax1 = fig.add_subplot(2, 2, 1)
-ax2 = fig.add_subplot(2, 2, 2)
-ax3 = fig.add_subplot(2, 2, (3, 4))
+    noisy_signal = original_signal + noise  # adding random noise here
 
-ax1.plot(original_signal)
-ax1.set_title("original")
-ax1.set_xlim(200, 400)  # Set x-axis limits to zoom in
+    # CALCULATING FFT - FOURIER FAST TRANSFORM
+    f_hat = np.fft.fft(noisy_signal, N)
+    n = int(np.floor(N / 2))  # frequencies till N/2 can be used for this processing
 
-ax2.plot(noise)
-ax2.set_title("noise")
-ax2.set_xlim(200, 400)  # Set x-axis limits to zoom in
+    new_freqs = (1 / (N * time_step)) * np.arange(N)
+    psd = (f_hat * np.conjugate(f_hat) / N).real  # imag is already 0
+    mag = (np.abs(f_hat) / N).real  # imag is already 0
 
-ax3.plot(noisy_signal, label="noisy")
-ax3.plot(original_signal, label="original")
-ax3.set_xlim(200, 400)  # Set x-axis limits to zoom in
+    # cleaning based on threshold
+    threshold_idxs = (psd > THRESHOLD)
 
-plt.legend()
-plt.show()
+    cleaned_psd = psd * threshold_idxs
+
+    cleaned_f_hat = f_hat * threshold_idxs
+
+    # regenerating signal based on cleaned spectrum using inverse fourier
+    regen_signal = np.fft.ifft(cleaned_f_hat).real
+
+    MSE = np.mean((original_signal - regen_signal) ** 2)
+
+    if MSE<MinMSE:
+        MinMSE = MSE
+        best_noise=noise
+        best_original_signal=original_signal
+        best_noisy_signal=noisy_signal
+        best_psd=psd
+        best_mag=mag
+        best_cleaned_psd=cleaned_psd
+        best_regen_signal=regen_signal
+        best_freqs_resulted = threshold_idxs
+        best_freqs = freqs
+
+    if MSE>MaxMSE:
+        MaxMSE = MSE
+        worst_noise=noise
+        worst_original_signal=original_signal
+        worst_noisy_signal=noisy_signal
+        worst_psd=psd
+        worst_mag=mag
+        worst_cleaned_psd=cleaned_psd
+        worst_regen_signal=regen_signal
+        worst_freqs_resulted = threshold_idxs
+        worst_freqs = freqs
 
 
+plot_noisy_signals(best_original_signal, best_noise, best_noisy_signal,best_psd,best_mag,best_cleaned_psd,best_regen_signal,
+                   'seaborn-v0_8-bright',MinMSE,"Best Signal - lowest error: ")
 
-# CALCULATING FFT - FOURIER FAST TRANSFORM
-f_hat = np.fft.fft(noisy_signal, N)
-n = int(np.floor(N / 2))  # frequencies till N/2 can be used for this processing
+plot_noisy_signals(worst_original_signal, worst_noise, worst_noisy_signal,worst_psd,worst_mag,worst_cleaned_psd,worst_regen_signal,
+                   'seaborn-v0_8-dark-palette',MaxMSE,"Worst Signal - highest error: ")
 
-new_freqs = (1 / (N * time_step)) * np.arange(N)
-psd = (f_hat * np.conjugate(f_hat) / N).real  # imag is already 0
-mag = (np.abs(f_hat) / N).real  # imag is already 0
+# print("Eroarea medie patratica minima:",MinMSE)
+# print("Eroarea medie patratica maxima:",MaxMSE)
 
+# FOR MORE STYLES TRY THE FOLLOWING PRINT
+# print(plt.style.available)
 
-fig, ax = plt.subplots(3, 1, figsize=(10, 7))
-#plt.axvline(50)
-#plt.axvline(70)
-ax[0].plot(new_freqs[:n], psd[:n], 'g', label='PSD')
-ax[1].plot(new_freqs[:n], mag[:n], 'b', label="magnitude")
+print("Frequencies in the original best signal: ", np.sort(best_freqs))
+indexes = np.where(best_freqs_resulted == True)[0]
+print("Frequencies in the regenerated best signal: ", indexes)
 
-Thold = 100  # threshold for getting components
-# cleaning based on threshold
-threshold_idxs = (psd > Thold)
+print()
+print("Frequencies in the original worst signal: ", np.sort(worst_freqs))
+indexes = np.where(worst_freqs_resulted == True)[0]
+print("Frequencies in the regenerated worst signal: ", indexes)
 
-cleaned_psd = psd * threshold_idxs
-ax[2].plot(new_freqs[:n], cleaned_psd[:n],'y',label='cleaned PSD')
-
-fig.legend()
-fig.show()
-
-
-
-cleaned_f_hat = f_hat * threshold_idxs
-
-# regenerating signal based on cleaned spectrum using inverse fourier
-regen_signal = np.fft.ifft(cleaned_f_hat).real
-fig, ax = plt.subplots(3, 1, figsize=(15, 15))
-
-ax[0].plot(noisy_signal, label="noisy signal")
-ax[0].plot(original_signal, label="original signal")
-ax[0].legend()
-ax[0].set_xlim(200, 400)  # Set x-axis limits to zoom in
-
-ax[1].plot(noisy_signal, label="noisy signal")
-ax[1].plot(regen_signal, label="recovered signal")
-ax[1].legend()
-ax[1].set_xlim(200, 400)  # Set x-axis limits to zoom in
-
-ax[2].plot(original_signal, label="original signal")
-ax[2].plot(regen_signal, label="recovered signal")
-ax[2].legend()
-ax[2].set_xlim(200, 400)  # Set x-axis limits to zoom in
-
-plt.show()
