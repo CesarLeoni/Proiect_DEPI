@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib import style
 from mightypy.make import sine_wave_from_sample, sine_wave_from_timesteps
 
-style.use("seaborn")
+style.use('ggplot')
 
 time_step = 0.001
 
